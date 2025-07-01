@@ -15,8 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar todo o projeto
 COPY . .
 
-# Expor porta do Jupyter
-EXPOSE 8888
+# Expor a porta 8000
+EXPOSE 8000
 
-# Comando padrão (Jupyter Lab)
-CMD ["jupyter", "lab", "--ip=0.0.0.0", "--allow-root", "--notebook-dir=/app"]
+# abrir o bash no container
+CMD ["sh", "-c"]

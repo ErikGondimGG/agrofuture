@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-
 setup(
     name="agrofuture",
     version="0.1.0",
@@ -12,5 +11,12 @@ setup(
         "xgboost>=2.0",
         "lightgbm>=4.3",
         "catboost>=1.2"
-    ]
+    ],
+    entry_points={
+        "console_scripts": [
+            "agrofuture=agrofuture.cli:main",
+            "agrofuture-train = agrofuture.model_trainer:main",
+            "agrofuture-predict=scripts.generate_predictions:main",
+        ]
+    }
 )

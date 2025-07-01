@@ -1,0 +1,26 @@
+services:
+  pipeline:
+    image: agrofuture
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./src:/app/src
+      - ./scripts:/app/scripts
+    command: ["python", "scripts/run_pipeline.py"]
+    environment:
+      - TZ=America/Sao_Paulo
+      - PYTHONPATH=/app/src
+
+  predictions:
+    image: agrofuture
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./src:/app/src
+      - ./scripts:/app/scripts
+    entrypoint: ["python", "scripts/generate_predictions.py"]
+    environment:
+      - TZ=America/Sao_Paulo
+      - PYTHONPATH=/app/src
