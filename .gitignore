@@ -7,3 +7,7 @@ __pycache__/
 *.model
 data/processed/
 outputs/
+data/raw/
+*.csv
+*.xlsx
+*.parquet
