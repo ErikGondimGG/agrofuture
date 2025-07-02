@@ -1,49 +1,57 @@
-# AgroFuture - IA na Previsão de Negociações
-
+# Projeto Agrofuture - Previsão de Comportamento de Empresas
 
 ## Visão Geral
 
-Este projeto tem como objetivo prever quais empresas estarão vendendo em um determinado dia, baseado em dados históricos de transações e de mercado. O sistema utiliza aprendizado de máquina com XGBoost para fazer previsões multi-label, onde cada empresa é tratada como uma classe binária independente.
+Este projeto utiliza machine learning para prever quais empresas estarão vendendo em um determinado dia, baseado em dados históricos de transações e de mercado. O sistema implementa um modelo XGBoost com validação cruzada temporal e thresholds dinâmicos para previsões multi-label.
 
 ## Pré-requisitos
 
-Antes de começar, certifique-se de ter instalado:
+- Docker (versão 20.10+)
+- Docker Compose (versão 2.0+)
 
-* Docker (versão 20.10+)
-* Docker Compose (versão 2.0+)
+## Estrutura de Diretórios
 
-## Passo 1: Iniciar o Sistema
-
-1. **Clone o repositório** (se aplicável):
-   **bash**
-
-   ```
-   git clone <https://github.com/ErikGondimGG/agrofuture.git>
-   cd <agrofuture>
-   ```
-2. **Dê permissão de execução ao script** :
-   **bash**
+**text**
 
 ```
-   chmod +x start.sh
+.
+├── data/
+│   └── raw/                  # Dados brutos (arquivos Excel)
+├── outputs/
+│   ├── models/               # Modelos treinados
+│   ├── predictions/          # Previsões geradas
+│   └── reports/              # Relatórios de avaliação
+├── src/                      # Código fonte
+│   ├── data_loader.py        # Carregamento de dados
+│   ├── feature_engineer.py   # Engenharia de features
+│   ├── model_trainer.py      # Treinamento do modelo
+│   ├── run_pipeline.py       # Pipeline de treinamento
+│   └── generate_predictions.py # Geração de previsões
+├── start.sh                  # Script principal
+└── docker-compose.yml        # Configuração Docker
 ```
 
-1. **Execute o script** :
-   **bash**
+## Como Executar
+
+### Passo 1: Dar permissão de execução
+
+**bash**
 
 ```
-   ./start.sh
+chmod +x start.sh
 ```
 
-Se os containers não iniciarem:
+### Passo 2: Iniciar o sistema
 
-* Verifique se o Docker está rodando: `docker info`
-* Verifique os logs: `docker compose logs`
+**bash**
 
+```
+./start.sh
+```
 
-### Passo 2: Selecionar ação
+### Menu Interativo
 
-Após iniciar, o sistema apresentará um menu com as opções:
+Ao executar o script, você verá as opções:
 
 **text**
 
@@ -54,136 +62,148 @@ Selecione o que fazer a seguir:
 3) Sair
 ```
 
-### Fluxo Recomendados
+## Fluxo Recomendado
 
-1. **Primeira execução:**
-   * Selecione a opção `1` para treinar o modelo inicial
-   * O sistema criará automaticamente a estrutura de diretórios necessária
-   * O modelo treinado será salvo em `outputs/models/`
+1. **Treinar modelo inicial:**
+   - Selecione opção `1`
+   - O sistema criará automaticamente:
+     - Estrutura de diretórios necessária
+     - Modelo treinado em `outputs/models/`
+     - Relatórios de avaliação em `outputs/reports/`
 2. **Gerar previsões:**
-   * Selecione a opção `2` e informe a data desejada no formato `YYYY-MM-DD`
-   * As previsões serão salvas em `outputs/predictions/`
+   - Selecione opção `2`
+   - Informe a data no formato `YYYY-MM-DD`
+   - As previsões serão salvas em `outputs/predictions/`
 
-## Estrutura do Projeto
+## Scripts Principais
 
-### Diretórios Principais
+### `start.sh`
+
+- Ponto de entrada do sistema
+- Gerencia containers Docker
+- Oferece menu interativo
+- Cria estrutura de diretórios automaticamente
+
+### `run_pipeline.py`
+
+Fluxo completo de treinamento:
+
+1. Carrega dados de transações e mercado
+2. Realiza engenharia de features
+3. Treina modelo XGBoost com validação temporal
+4. Gera relatórios de performance
+5. Salva modelo treinado e thresholds
+
+### `generate_predictions.py`
+
+Gera previsões para datas específicas:
+
+**bash**
+
+```
+# Uso (dentro do container)
+python generate_predictions.py YYYY-MM-DD
+```
+
+Funcionalidades:
+
+- Aceita datas históricas e futuras
+- Para datas futuras, usa extrapolação de features
+- Salva resultados em CSV com probabilidades por empresa
+
+## Funcionalidades Avançadas
+
+### Thresholds Dinâmicos
+
+- Calcula limite de decisão ótimo para cada empresa
+- Baseado na maximização do F1-score
+- Armazenado em `outputs/reports/thresholds_*.json`
+
+### Validação Cruzada Temporal
+
+- Divisão temporal mantendo integridade das datas
+- 5 folds para avaliação robusta
+- Métricas reportadas:
+  - F1-score
+  - Precision
+  - Recall
+
+### Engenharia de Features
+
+- Features temporais (média móvel, tendências)
+- Features agregadas (por dia e por empresa)
+- Percentual de participação por produto
+- Spread entre preço de transação e commodities
+
+## Exemplo de Saída
+
+### Relatório de Treinamento
 
 **text**
 
 ```
-data/
-└── raw/              # Dados brutos (arquivos Excel)
-outputs/
-├── models/           # Modelos treinados (arquivos .joblib)
-├── predictions/      # Previsões geradas (arquivos CSV)
-└── reports/          # Relatórios de treinamento e avaliação
-scripts/ 	      # Scripts de interacao
-src/                  # Código fonte
+📌 Modelo: MultiOutputClassifier
+🎯 Targets:
+  - CompanyA
+  - CompanyB
+
+📈 Cross-Validation Results:
+🔁 Fold 1
+   F1-score : 0.8723
+   Precision: 0.8541
+   Recall   : 0.8912
+   Thresholds por classe:
+     - CompanyA: threshold = 0.4213 | f1 = 0.8821
+...
+
+🧪 Teste Final (Hold-out):
+   F1-score : 0.8654
+   Precision: 0.8476
+   Recall   : 0.8839
+
+🎯 Thresholds Finais:
+   - CompanyA: 0.4321
+   - CompanyB: 0.3876
 ```
 
-### Scripts Principais
+### Arquivo de Previsões
 
-1. **`start.sh`**
-   * Ponto de entrada do sistema
-   * Gerencia containers Docker e menu interativo
-2. **`run_pipeline.py`**
-   * Orquestra o fluxo completo de treinamento:
-     1. Carregamento de dados
-     2. Engenharia de features
-     3. Treinamento do modelo
-     4. Geração de relatórios
-3. **`generate_predictions.py`**
-   * Gera previsões para uma data específica
-   * Aceita tanto datas históricas quanto futuras
-4. **`data_loader.py`**
-   * Carrega e combina dados de transações e mercado
-   * Obtém valores de dólar em tempo real via API
-5. **`feature_engineer.py`**
-   * Cria features temporais e agregadas
-   * Prepara o target multi-label
-6. **`model_trainer.py`**
-   * Treina modelo XGBoost com validação cruzada temporal
-   * Calcula thresholds dinâmicos por empresa
-   * Gera relatórios de performance
+`predictions_2024-11-05.csv`:
 
-## Fluxo de Dados
+**csv**
 
 ```
-graph LR
-A[Dados Brutos] --> B[Carregamento]
-B --> C[Engenharia de Features]
-C --> D[Treinamento do Modelo]
-D --> E[Modelo Treinado]
-E --> F[Geração de Previsões]
-F --> G[Relatórios e Resultados]
+Empresa,Probabilidade (%),Data,Tipo
+CompanyA,95.25,2024-11-05,Futura
+CompanyB,82.17,2024-11-05,Futura
 ```
 
-## Funcionalidades Chave
-
-### Para Datas Futuras
-
-Ao gerar previsões para datas futuras, o sistema:
-
-1. Usa o último dia conhecido para criar dados sintéticos
-2. Mantém constantes os valores de commodities (CBOT e dólar)
-3. Calcula features com base no histórico recente
-4. Mantém tendências do último período conhecido
-
-### Thresholds Dinâmicos
-
-* Calcula limite de decisão ótimo para cada empresa
-* Baseado na maximização do F1-score
-* Armazenado em arquivos JSON em `outputs/reports/`
-
-### Validação Cruzada Temporal
-
-* Divisão temporal dos dados mantendo integridade das datas
-* 5 folds para avaliação robusta do modelo
-* Métricas: F1-score, Precision e Recall
-
-## Saídas do Sistema
-
-1. **Modelos Treinados**
-   * Formatos: `.joblib`
-   * Localização: `outputs/models/`
-   * Nomenclatura: `xgboost_model_<TIMESTAMP>.joblib`
-2. **Previsões**
-   * Formatos: `.csv`
-   * Localização: `outputs/predictions/`
-   * Estrutura:| Empresa | Probabilidade (%) | Data       | Tipo   |
-     | ------- | ----------------- | ---------- | ------ |
-     | EmpA    | 95.25             | 2024-11-05 | Futura |
-3. **Relatórios**
-   * Formatos: `.txt` e `.json`
-   * Localização: `outputs/reports/`
-   * Conteúdo:
-     * Performance por fold de validação
-     * Métricas no conjunto de teste
-     * Thresholds por empresa
-     * Importância de features
-
-## Solução de Problemas Comuns
+## Solução de Problemas
 
 **Erro: "Nenhum modelo encontrado"**
 
-* Certifique-se que executou o treinamento (opção 1) antes de gerar previsões
-* Verifique o diretório `outputs/models/`
+- Execute primeiro o treinamento (opção 1)
+- Verifique se existem arquivos em `outputs/models/`
 
 **Erro de permissão:**
 
 **bash**
 
 ```
-chmod +x start.sh
-./start.sh
+sudo chmod +x start.sh
+sudo ./start.sh
 ```
 
 **Docker não inicia:**
 
-* Verifique se o Docker está rodando: `docker info`
-* Verifique os logs: `docker compose logs`
+**bash**
+
+```
+docker info              # Verifique se o Docker está rodando
+docker compose logs      # Verifique os logs dos containers
+```
 
 **Data não disponível:**
 
-* Verifique o formato: deve ser `YYYY-MM-DD`
-* Confira o intervalo de datas disponíveis nos dados brutos
+- Verifique o formato: deve ser `YYYY-MM-DD`
+- Confira o intervalo de datas nos arquivos de dados brutos
