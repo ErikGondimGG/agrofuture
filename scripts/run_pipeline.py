@@ -18,6 +18,7 @@ from datetime import datetime
 from agrofuture.data_loader import load_data, merge_data
 from agrofuture.feature_engineer import create_features
 from agrofuture.model_trainer import train_and_validate
+from typing import Dict, Any
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -50,66 +51,88 @@ def main():
   model_file = MODELS_DIR / f"xgboost_model_{datetime.now().strftime('%Y%m%d%H%M%S')}.joblib"
   joblib.dump(model, model_file)
 
-  # salvar relatorio
-  report_file = OUTPUTS_DIR / "reports" / f"relatorio_{datetime.now().strftime('%Y%m%d')}_xgboost_model_{datetime.now().strftime('%Y%m%d%H%M%S')}.txt"
-  with open(report_file, "w") as f:
-    f.write(str(results))
+  # salvar relatorio  
+  save_model_report(results, OUTPUTS_DIR)
 
   # salvar thresholds
   thresholds_file = OUTPUTS_DIR / "reports" / f"thresholds_{datetime.now().strftime('%Y%m%d')}_xgboost_model_{datetime.now().strftime('%Y%m%d%H%M%S')}.json"
   with open(thresholds_file, "w") as f:
     f.write(str(thresholds))
 
-  # Previsões
-  # print("Gerando previsões...")
-  # prediction_date = pd.Timestamp("2024-11-05")
-  # prediction_data = final_df[final_df["Date"] == prediction_date].copy()
+def save_model_report(report: Dict[str, Any], OUTPUTS_DIR: Path) -> Path:
+    report_lines = []
 
-  # if prediction_data.empty:
-  #   raise ValueError(f"Nenhum dado encontrado para a data {prediction_date}. Verifique os dados processados.")
-  
-  # Fazer previsões
-#   X_pred = prediction_data.drop(columns=["Date", "Company"])
-#   prediction_data["probabilidade_venda"] = model.predict_proba(X_pred)[:, 1]
+    # Cabeçalho
+    report_lines.append(f"📌 Modelo: {report.get('model', 'N/A')}\n")
 
-#   # Selecionar Top Vendedores
-  # top_vendedores = prediction_data.sort_values("probabilidade_venda", ascending=False).head(100)
+    target_names = report.get("target_names", [])
+    feature_names = report.get("feature_names", [])
 
-#   # salvar previsões
-#   predictions_file = PREDICTIONS_DIR / f"previsoes_{prediction_date.strftime('%Y%m%d')}.csv"
-#   top_vendedores[["Company", "probabilidade_venda"]].to_csv(predictions_file, index=False)
-#   print(f"Previsões salvas em: {predictions_file}")
+    report_lines.append("🎯 Targets:")
+    for t in target_names:
+        report_lines.append(f" - {t}")
+    report_lines.append("")
 
-  # generate_report(results, top_vendedores)
+    # Cross-validation
+    report_lines.append("📈 Cross-Validation Results:")
+    for fold_data in report.get("cross_validation", []):
+        fold = fold_data["fold"]
+        f1 = fold_data["f1_score"]
+        prec = fold_data["precision"]
+        rec = fold_data["recall"]
+        report_lines.append(f"\n🔁 Fold {fold}")
+        report_lines.append(f"   F1-score : {f1:.4f}")
+        report_lines.append(f"   Precision: {prec:.4f}")
+        report_lines.append(f"   Recall   : {rec:.4f}")
+        report_lines.append("   Thresholds por classe:")
+        for cls, thr in fold_data["thresholds"].items():
+            report_lines.append(f"     - {cls:<10}: threshold = {thr['value']:.4f} | f1 = {thr['f1']:.4f}")
+    report_lines.append("")
 
-# def generate_report(results, top_vendedores):
-#   """
-#   Gerar relatório com os resultados do pipeline.
-#   """
+    # Test performance
+    test = report.get("test_performance", {})
+    report_lines.append("🧪 Teste Final (Hold-out):")
+    report_lines.append(f"   F1-score : {test.get('f1_score', 0):.4f}")
+    report_lines.append(f"   Precision: {test.get('precision', 0):.4f}")
+    report_lines.append(f"   Recall   : {test.get('recall', 0):.4f}")
+    report_lines.append("")
 
-#   report_file = OUTPUTS_DIR / "reports" / "resumo_execucao.txt"
+    # Thresholds finais
+    thresholds = report.get("thresholds", {})
+    report_lines.append("🎯 Thresholds Finais por Classe:")
+    for cls, val in thresholds.items():
+        report_lines.append(f"   - {cls:<10}: {float(val):.4f}")
+    report_lines.append("")
 
-#   with open(report_file, "w") as f:
-#     f.write("="*50 + "\n")
-#     f.write(" RELATÓRIO AGROFUTURE\n")
-#     f.write("="*50 + "\n\n")
-    
-#     f.write(f"Data de execução: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n")
-    
-#     f.write("== Resultados de Validação (04/11/2024) ==\n")
-#     f.write(f"Modelo: {results['model_name']}\n")
-#     f.write(f"F1-Score: {results['f1_score']:.4f}\n")
-#     f.write(f"Precision: {results['precision']:.4f}\n")
-#     f.write(f"Recall: {results['recall']:.4f}\n\n")
-    
-#     f.write("== Top 5 Features ==\n")
-#     for feat, importance in results['top_features'][:5]:
-#         f.write(f"{feat}: {importance:.4f}\n")
-#     f.write("\n")
-    
-#     f.write("== Top 10 Vendedores Previstos (05/11/2024) ==\n")
-#     for i, row in enumerate(top_vendedores.head(10).itertuples()):
-#         f.write(f"{i+1}. Vendedor {row.id_vendedor}: {row.probabilidade_venda:.2%}\n")
+    # Feature importance
+    feature_importance = report.get("feature_importances", {})
+    mean_importance = feature_importance.get("mean_importance", {})
+    std_importance = feature_importance.get("std_importance", {})
+
+    report_lines.append("📊 Importância Média das Features (por classe):")
+    if mean_importance:
+        report_lines.append(f"\n{'Feature':<25}{'Média':>10} {'Std':>10}")
+        report_lines.append("-" * 45)
+        for feat in feature_names:
+            mean = mean_importance.get(feat, 0)
+            std = std_importance.get(feat, 0)
+            report_lines.append(f"{feat:<25}{mean:>10.4f} {std:>10.4f}")
+    else:
+        report_lines.append("Nenhuma importância de feature disponível.")
+
+    report_lines.append("\n✅ Fim do relatório.\n")
+
+    # Caminho do arquivo
+    now = datetime.now()
+    report_file = OUTPUTS_DIR / "reports" / f"relatorio_{now.strftime('%Y%m%d')}_xgboost_model_{now.strftime('%Y%m%d%H%M%S')}.txt"
+    report_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # Salvar em arquivo
+    with open(report_file, "w", encoding="utf-8") as f:
+        f.write("\n".join(report_lines))
+
+    print(f"📄 Relatório salvo em: {report_file}")
+    return report_file
 
 
 if __name__ == "__main__":

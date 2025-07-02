@@ -58,7 +58,7 @@ def temporal_train_test_split(X: pd.DataFrame, y: np.ndarray, test_size: float =
 
     return X_train, y_train, X_test, y_test
 
-def train_and_validate(df: pd.DataFrame, test_size: float = 0.2, n_splits: int = 5) -> Tuple[Any, List[Dict], Dict[str, float]]:
+def train_and_validate(df: pd.DataFrame, test_size: float = 0.2, n_splits: int = 5) -> Tuple[Any, Dict , Dict[str, float]]:
     """
     Treina e valida modelo, retornando thresholds dinâmicos
     
@@ -96,7 +96,8 @@ def train_and_validate(df: pd.DataFrame, test_size: float = 0.2, n_splits: int =
             reg_alpha=0.1,            # L1 regularization
             reg_lambda=1.0,           # L2 regularization
             random_state=242,
-            eval_metric='logloss'
+            eval_metric='logloss',
+            tree_method="hist"
         ),
         n_jobs=-1
     )
@@ -189,7 +190,7 @@ def train_and_validate(df: pd.DataFrame, test_size: float = 0.2, n_splits: int =
     )
     final_report["feature_importances"] = feature_importances.to_dict()
 
-    return model, fold_reports, final_thresholds
+    return model, final_report, final_thresholds
 
 
 def get_feature_importances(model, company_classes, feature_names):
